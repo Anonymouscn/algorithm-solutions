@@ -1,5 +1,7 @@
 # 865. 具有所有最深节点的最小子树
 
+<p style="color: #ffb800; display: inline-flex; item-align: center; justify-content: center; padding: 2px 10px; border: 2px solid #666; border-radius: 20px">中等</p>
+
 给定一个根为 `root` 的二叉树，每个节点的深度是 **该节点到根的最短距离** 。
 
 返回包含原始树中所有 **最深节点** 的 **最小子树** 。
