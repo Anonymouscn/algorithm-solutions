@@ -418,10 +418,12 @@ def get_problems_in_leetcode_cn(args, visable: bool = True):
             name=problem_list[0]['translatedTitle'],
             difficulty=problem_list[0]['difficulty'],
             paid_only=problem_list[0]['paidOnly'],
+            visable=visable,
+            print_title=False,
         )
 
 
-def get_problem_details_in_leetcode_cn(args, slug: str, id: str, name: str, difficulty: str, paid_only: bool, visable: bool = True) -> str:
+def get_problem_details_in_leetcode_cn(args, slug: str, id: str, name: str, difficulty: str, paid_only: bool, visable: bool = True, print_title: bool = True) -> str:
     if slug is None:
         print("error: cannot locate to problem")
         exit(1)
@@ -430,11 +432,14 @@ def get_problem_details_in_leetcode_cn(args, slug: str, id: str, name: str, diff
     soup = BeautifulSoup(response.content, 'html.parser')
     meta_desc = soup.find('meta', attrs={'name': 'description'})
     raw_content = meta_desc['content']
-    leetcode_problem_terminal_format(raw_content)
+    
 
     rows = raw_content.split('\n')
     meta = rows[0].split('-')
     rows[0] = meta[1].strip()
+    if not print_title:
+        meta[0] = ''
+    leetcode_problem_terminal_format(args, title=meta[0], rows=rows)
     if not args.readonly:
         save_problem_details_in_leetcode_cn_as_markdown(
             args=args, 
@@ -492,11 +497,8 @@ def markdown_compile(rows: List[str]) -> List[str]:
             row = f"> {row}" # markdown 引用
     return rows
 
-def leetcode_problem_terminal_format(content: str):
-    rows = content.split('\n')
-    meta = rows[0].split('-')
-    rows[0] = meta[1].strip()
-    print(meta[0].strip())
+def leetcode_problem_terminal_format(args, title:str, rows:List):
+    print(title)
     for row in rows:
         # rend photo from url
         row, matched = replace_and_get_old(row, leetcode_image_pattern)
