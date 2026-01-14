@@ -44,7 +44,9 @@ leetcode_level_translate_cn = {
 }
 
 
-headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.99 Safari/537.36"}
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.99 Safari/537.36",
+}
 
 query_url = "https://leetcode.cn/graphql/"
 problem_desc_url = "https://leetcode.cn/problems/$problem_name"
@@ -331,6 +333,35 @@ def print_table(
 
 
 def get_problems_in_leetcode_cn(args, visable: bool = True):
+    if args.filter is not None: 
+        conditions = args.filter.split(';')
+        for condition in conditions:
+            cmd = []
+            if '~' in condition:
+                cmd = condition.split('~')
+            if '=' in condition:
+                cmd = condition.split('=')
+            if len(cmd) != 2:
+                print(f'Error: filter condition is illegal: {condition}')
+                exit(1)
+            match cmd[0].lower():
+                case 'id':
+                    print()
+                case 'title': # 题目名称需要用户登录后 (cookie 通过鉴权) 才能调用 graphql 接口筛选
+                    query_payload['variables']['searchKeyword'] = cmd[1]
+                case 'difficulty':
+                    difficulties = cmd[1].split(',')
+                    available_options = ['EASY', 'MEDIUM', 'HARD']
+                    for idx, difficulty in enumerate(difficulties):
+                        difficulty = difficulty.upper()
+                        if difficulty not in available_options:
+                            print(f'Error: filter difficulty level is unsupported: {condition} (only in: easy, medium, hard)')
+                            exit(1)
+                        difficulties[idx] = difficulty
+                    query_payload['variables']['filters']['difficultyFilter']['difficulties'] = difficulties
+                case _:
+                    print(f'Error: filter condition is unsupported: {condition}')
+                    exit(1)
     if args.size is not None:
         size = int(args.size)
         if size > 0:
@@ -341,7 +372,23 @@ def get_problems_in_leetcode_cn(args, visable: bool = True):
             query_payload['variables']['skip'] = query_payload['variables']['limit'] * (page - 1)
     response = requests.get(query_url, json=query_payload, headers=headers)
     data = response.json()
-    problems_info = data["data"]["problemsetQuestionListV2"]
+    if data is None:
+        print('Error: no response form leetcode-cn')
+        exit(1)
+    # 接口错误输出
+    if 'errors' in data and data['errors'] is not None:
+            msg = ''
+            for error in data['errors']:
+                if len(msg) > 0:
+                    msg += ';'
+                msg += error['message']
+            print(f'Error form leetcode-cn: {msg}')
+            exit(1)
+    data = data["data"]
+    if data is None:
+        print('Warning: no problem found form leetcode-cn')
+        exit(0)
+    problems_info = data["problemsetQuestionListV2"]
     # print("问题总数: ", problems_info["totalLength"])
 
     problem_list = problems_info["questions"]
@@ -376,26 +423,24 @@ def get_problem_details_in_leetcode_cn(args, slug: str, id: str, name: str, diff
         exit(1)
     url = problem_desc_url.replace('$problem_name', slug)
     response = requests.get(url)
-    # print(response.content)
     soup = BeautifulSoup(response.content, 'html.parser')
     meta_desc = soup.find('meta', attrs={'name': 'description'})
-    # print(meta_desc['content'])
     raw_content = meta_desc['content']
     leetcode_problem_terminal_format(raw_content)
 
     rows = raw_content.split('\n')
     meta = rows[0].split('-')
     rows[0] = meta[1].strip()
-    # rows[0] = meta[1].strip()
-    save_problem_details_in_leetcode_cn_as_markdown(
-        args=args, 
-        slug=slug, 
-        id=id, 
-        title=name, 
-        difficulty=difficulty,
-        url=url, 
-        content_rows=rows,
-    )
+    if not args.readonly:
+        save_problem_details_in_leetcode_cn_as_markdown(
+            args=args, 
+            slug=slug, 
+            id=id, 
+            title=name, 
+            difficulty=difficulty,
+            url=url, 
+            content_rows=rows,
+        )
     return raw_content
 
 
@@ -505,6 +550,7 @@ def get_problems_in_codeforces(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Algorithm solution manager")
+    # 算法项目管理
     parser.add_argument("-v", "--version", action="version", version="v1.0.0")
     parser.add_argument("-n", "--create", action="store", help="create categories, problem sets, or problems")
     parser.add_argument("--name", action="store", help="name of item")
@@ -517,6 +563,13 @@ def main():
     parser.add_argument("--size", action="store", help="size of list item")
     parser.add_argument("--filter", action="store", help="filter condition of item")
     parser.add_argument("--update", action="store", help="update problems")
+    parser.add_argument("-ro", "--readonly", action="store_true", default=False, help="read-only, do not save the document")
+    # 账户管理 todo: 待开发
+    parser.add_argument("--login", action="store", help="login platform/source")
+    parser.add_argument("--account", action="store", help="")
+    # 数据管理 todo: 待开发
+    # 数据分析 todo: 待开发
+    # AI 辅助: 待开发
     parser.set_defaults(func=lambda args: parser.print_help(args))
     args = parser.parse_args()
 
