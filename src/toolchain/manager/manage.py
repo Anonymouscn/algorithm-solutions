@@ -333,6 +333,7 @@ def print_table(
 
 
 def get_problems_in_leetcode_cn(args, visable: bool = True):
+    lock_page = False
     if args.filter is not None: 
         conditions = args.filter.split(';')
         for condition in conditions:
@@ -346,7 +347,9 @@ def get_problems_in_leetcode_cn(args, visable: bool = True):
                 exit(1)
             match cmd[0].lower():
                 case 'id':
-                    print()
+                    lock_page = True
+                    query_payload['variables']['limit'] = 1
+                    query_payload['variables']['skip'] = query_payload['variables']['limit'] * (int(cmd[1]) - 1)
                 case 'title': # 题目名称需要用户登录后 (cookie 通过鉴权) 才能调用 graphql 接口筛选
                     query_payload['variables']['searchKeyword'] = cmd[1]
                 case 'difficulty':
@@ -362,14 +365,15 @@ def get_problems_in_leetcode_cn(args, visable: bool = True):
                 case _:
                     print(f'Error: filter condition is unsupported: {condition}')
                     exit(1)
-    if args.size is not None:
-        size = int(args.size)
-        if size > 0:
-            query_payload['variables']['limit'] = size
-    if args.page is not None:
-        page = int(args.page)
-        if page > 1:
-            query_payload['variables']['skip'] = query_payload['variables']['limit'] * (page - 1)
+    if not lock_page:
+        if args.size is not None:
+            size = int(args.size)
+            if size > 0:
+                query_payload['variables']['limit'] = size
+        if args.page is not None:
+            page = int(args.page)
+            if page > 1:
+                query_payload['variables']['skip'] = query_payload['variables']['limit'] * (page - 1)
     response = requests.get(query_url, json=query_payload, headers=headers)
     data = response.json()
     if data is None:
