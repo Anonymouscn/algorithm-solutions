@@ -3,37 +3,51 @@ import requests
 import json
 import os
 import re
-from bs4 import BeautifulSoup
-
-import textwrap
-from typing import Any, Dict, List
-from wcwidth import wcwidth, wcswidth
-
 import sys
 import shutil
 import tempfile
 import subprocess
-from pathlib import Path
-from urllib.parse import urlparse
-
-
+import textwrap
 import base64
 import urllib.parse
 import urllib.request
-
+from bs4 import BeautifulSoup
+from typing import Any, Dict, List
+from wcwidth import wcwidth, wcswidth
+from pathlib import Path
+from urllib.parse import urlparse
 from pathlib import Path
 
 
 Align = str  # "left" | "right" | "center"
 
+
 lang_support = ['java', 'go', 'python', 'rust']
 
+
 leetcode_image_pattern = r"\[\s*(https?://[^\]\s]+(?:\s+[^\]\s]+)*)\s*\]"
+leetcode_strong_pattern = r'^\s*示例\s*\d*[:：]|输入\s*\d*[:：]|输出\s*\d*[:：]|解释\s*\d*[:：]|提示\s*\d*[:：]'
+
+
+leetcode_level_html = """
+<p style="color: $color; display: inline-flex; item-align: center; justify-content: center; padding: 2px 10px; border: 2px solid #666; border-radius: 20px">$text</p>
+"""
+leetcode_level_color = {
+    'EASY': '#1cb8b8',
+    'MEDIUM': '#ffb800',
+    'HARD': '#f8615c',
+}
+leetcode_level_translate_cn = {
+    'EASY': '简单',
+    'MEDIUM': '中等',
+    'HARD': '困难',
+}
+
 
 headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.99 Safari/537.36"}
 
 query_url = "https://leetcode.cn/graphql/"
-problem_desc_url = "https://leetcode.cn/problems/$problem_name/description/"
+problem_desc_url = "https://leetcode.cn/problems/$problem_name"
 
 # 查询问题数据
 query_payload = {
@@ -91,33 +105,17 @@ query_payload = {
   "operationName": "problemsetQuestionListV2"
 }
 
+def get_script_abs_path() -> str:
+    return os.path.abspath(__file__)
+
+def get_script_abs_folder_path() -> str:
+    return os.path.dirname(get_script_abs_path())
+
 def create_category():
     print()
 
-def create_problem_set(name :str):
+def create_problem_set(name:str):
     print()
-
-### 
-
-# response = requests.get(query_url, json=query_payload, headers=headers)
-# data = response.json()
-
-# # print(data['data']['problemsetQuestionListV2']) # totalLength
-
-# # 问题分页过滤数据
-# problems_info = data['data']['problemsetQuestionListV2']
-# print('问题总数: ', problems_info['totalLength'])
-# problem_list = problems_info['questions']
-# for p in problem_list:
-#     print(p['questionFrontendId'], p['title'], p['titleSlug'], p['translatedTitle'], p['status'], (p['acRate'] * 100))
-
-# response = requests.get(problem_desc_url.replace('$problem_name', problem_list[0]['titleSlug']))
-# # print(response.content)
-# soup = BeautifulSoup(response.content, 'html.parser')
-# meta_desc = soup.find('meta', attrs={'name': 'description'})
-# print(meta_desc['content'])
-
-###
 
 # 创建
 def create(args):
@@ -137,7 +135,7 @@ def create(args):
             create_problem(source=args.source, name=args.name)
 
 # 路径安全检查
-def path_safe_check(path: str, panic: bool = True, prefix: str='', suffix: str='') -> bool:
+def path_safe_check(path: str, panic: bool = True, prefix: str = '', suffix: str = '') -> bool:
     unsafe = ".." in path
     if unsafe and panic:
         print(f'panic: path {prefix+path+suffix} is unsafe')
@@ -148,13 +146,13 @@ def path_safe_check(path: str, panic: bool = True, prefix: str='', suffix: str='
 def create_folder(name: str):
     if name is not None:
         path_safe_check(name)
-        path = f'../../{name}'
+        path = f'{get_script_abs_folder_path()}/../../{name}'
         if exist_path(path) is False:
             os.makedirs(path)
             print(f'{path} created')
 
 # 创建文件
-def create_file(path: str, prefix: str = '../../', suffix: str = '', content:str=None):
+def create_file(path: str, prefix: str = f'{get_script_abs_folder_path()}/../../', suffix: str = '', content: str = None):
     if path is not None:
         path_safe_check(path)
         path = prefix+path+suffix
@@ -183,13 +181,13 @@ def create_category(name: str):
         create_file(path=f'category/{name}/.gitkeep')
 
 # 创建问题
-def create_problem(name:str, source:str, content:str=None):
+def create_problem(name: str, source: str, content: str = None):
     if name is not None:
         path_safe_check(name)
         for lang in lang_support:
             create_folder(f'problems/{source}/{name}/solution/{lang}')
             create_file(path=f'problems/{source}/{name}/solution/{lang}/.gitkeep')
-        create_file(path=f'problems/{source}/{name}/PROBLEM.md')
+        create_file(path=f'problems/{source}/{name}/PROBLEM.md', content=content)
 
 def exist_path(path: str) -> bool:
     return Path(path).expanduser().resolve().exists()
@@ -246,7 +244,6 @@ def _wrap_by_disp_width(value: Any, width: int) -> List[str]:
     s = "" if value is None else str(value)
     if width <= 0:
         return [s]
-
     lines, cur, cur_w = [], [], 0
     for ch in s:
         ch_w = wcwidth(ch)
@@ -259,7 +256,6 @@ def _wrap_by_disp_width(value: Any, width: int) -> List[str]:
         else:
             cur.append(ch)
             cur_w += ch_w
-
     if cur:
         lines.append("".join(cur))
     return lines if lines else [""]
@@ -355,7 +351,8 @@ def get_problems_in_leetcode_cn(args, visable: bool = True):
         # {"header": "Title",    "key": "title",              "width": 40, "align": "left"},
         # {"header": "Slug",     "key": "titleSlug",          "width": 35, "align": "left"},
         {"header": "Title", "key": "translatedTitle",    "width": 32, "align": "left"},
-        {"header": "AC Rate",       "getter": lambda p: f"{p['acRate']*100:.1f}%", "width": 8, "align": "left", "first_line_only": True},
+        {"header": "AC Rate",       "getter": lambda p: f"{p['acRate']*100:.1f}%", "width": 12, "align": "left", "first_line_only": True},
+        {"header": "Difficulty",   "key": "difficulty",             "width": 12, "align": "left",  "first_line_only": True},
         {"header": "Status",   "key": "status",             "width": 12, "align": "left",  "first_line_only": True},
     ]
 
@@ -363,24 +360,90 @@ def get_problems_in_leetcode_cn(args, visable: bool = True):
         print_table(problem_list, columns, show_header=True, header_sep=True, col_sep=" ")
 
     if len(problem_list) == 1:
-        get_problem_details_in_leetcode_cn(args, problem_list[0]['titleSlug'], problem_list[0]['questionFrontendId'], problem_list[0]['translatedTitle'])
+        get_problem_details_in_leetcode_cn(
+            args=args, 
+            slug=problem_list[0]['titleSlug'], 
+            id=problem_list[0]['questionFrontendId'], 
+            name=problem_list[0]['translatedTitle'],
+            difficulty=problem_list[0]['difficulty'],
+            paid_only=problem_list[0]['paidOnly'],
+        )
 
 
-def get_problem_details_in_leetcode_cn(args, slug:str, id:str, name:str) -> str:
+def get_problem_details_in_leetcode_cn(args, slug: str, id: str, name: str, difficulty: str, paid_only: bool, visable: bool = True) -> str:
     if slug is None:
         print("error: cannot locate to problem")
         exit(1)
-    response = requests.get(problem_desc_url.replace('$problem_name', slug))
+    url = problem_desc_url.replace('$problem_name', slug)
+    response = requests.get(url)
     # print(response.content)
     soup = BeautifulSoup(response.content, 'html.parser')
     meta_desc = soup.find('meta', attrs={'name': 'description'})
     # print(meta_desc['content'])
     raw_content = meta_desc['content']
     leetcode_problem_terminal_format(raw_content)
+
+    rows = raw_content.split('\n')
+    meta = rows[0].split('-')
+    rows[0] = meta[1].strip()
+    # rows[0] = meta[1].strip()
+    save_problem_details_in_leetcode_cn_as_markdown(
+        args=args, 
+        slug=slug, 
+        id=id, 
+        title=name, 
+        difficulty=difficulty,
+        url=url, 
+        content_rows=rows,
+    )
     return raw_content
 
 
-def leetcode_problem_terminal_format(content:str):
+def save_problem_details_in_leetcode_cn_as_markdown(args, slug: str, id: str, title: str, difficulty: str, url: str, content_rows: List):
+    folder_name = f"{id}. {title}"
+    target_path = f"problems/leetcode-cn/{folder_name}"
+    difficulty = difficulty.upper()
+    content_rows = [
+        f"# {folder_name}", 
+        leetcode_level_html.
+            replace('$color', leetcode_level_color[difficulty]).
+            replace('$text', leetcode_level_translate_cn[difficulty]),
+    ] + content_rows + [
+        "\r\n", 
+        "## 参考引用", 
+        f"[题目链接 - LeetCode(CN) - {folder_name}]({url})",
+    ]
+    rows = markdown_compile(content_rows)
+    create_problem(name=folder_name, source='leetcode-cn', content='\r\n'.join(rows))
+    print(f"problem saved in {target_path}")
+
+
+def markdown_compile(rows: List[str]) -> List[str]:
+    quote_state = False
+    for idx, row in enumerate(rows):
+        # 图片匹配
+        new_row, matched = replace_and_get_old(row, leetcode_image_pattern)
+        if matched:
+            url = matched[0]
+            rows[idx] = f"![{url}]({url})" # markdown 图片
+            row = rows[idx]
+        # 加粗匹配
+        match_info = re.match(leetcode_strong_pattern, row)
+        if match_info is not None:
+            if match_info.start() > 0:
+                row = f"{row[:match_info.start()]} **{match_info.group(0)}** {row[match_info.end():]}"
+            else:
+                row = f"**{match_info.group(0)}** {row[match_info.end():]}"
+        # 引用匹配
+        if "输入：" in row:
+            quote_state = True
+        if row.strip().replace('\n', '').replace('\r', '') == '':
+            quote_state = False
+        if quote_state:
+            row = f"> {row}" # markdown 引用
+    return rows
+
+def leetcode_problem_terminal_format(content: str):
     rows = content.split('\n')
     meta = rows[0].split('-')
     rows[0] = meta[1].strip()

@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# 如果没 source env.sh，也尽量自我定位到项目根（从脚本位置推算）
+if [ -z "$PROJECT_ROOT" ]; then
+  PROJECT_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+fi
+
+# 选择 [PROJECT_PYTHON / python / python3]
+if [ -n "$PROJECT_PYTHON" ] && command -v "$PROJECT_PYTHON" >/dev/null 2>&1; then
+  PY="$PROJECT_PYTHON"
+elif command -v python >/dev/null 2>&1; then
+  PY="$(command -v python)"
+elif command -v python3 >/dev/null 2>&1; then
+  PY="$(command -v python3)"
+else
+  echo "[lcg] ERROR: 找不到 python/python3，请先激活 venv/conda 或安装 Python" >&2
+  exit 1
+fi
+
+exec "$PY" "$PROJECT_ROOT/src/toolchain/manager/manage.py" "$@"
+EOF
+chmod +x bin/lcg
