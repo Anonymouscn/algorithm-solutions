@@ -51,6 +51,15 @@ headers = {
 query_url = "https://leetcode.cn/graphql/"
 problem_desc_url = "https://leetcode.cn/problems/$problem_name"
 
+# leetcode-cn 查询每日一题数据 (今日)
+leetcode_cn_daily_payload = {
+  "query": "\n    query CalendarTaskSchedule($days: Int!) {\n  calendarTaskSchedule(days: $days) {\n    contests {\n      id\n      name\n      slug\n      progress\n      link\n      premiumOnly\n    }\n    dailyQuestions {\n      id\n      name\n      slug\n      progress\n      link\n      premiumOnly\n    }\n    studyPlans {\n      id\n      name\n      slug\n      progress\n      link\n      premiumOnly\n    }\n  }\n}\n    ",
+  "variables": {
+    "days": 0
+  },
+  "operationName": "CalendarTaskSchedule"
+}
+
 # 查询问题数据
 query_payload = {
   "query": "\n    query problemsetQuestionListV2($filters: QuestionFilterInput, $limit: Int, $searchKeyword: String, $skip: Int, $sortBy: QuestionSortByInput, $categorySlug: String) {\n  problemsetQuestionListV2(\n    filters: $filters\n    limit: $limit\n    searchKeyword: $searchKeyword\n    skip: $skip\n    sortBy: $sortBy\n    categorySlug: $categorySlug\n  ) {\n    questions {\n      id\n      titleSlug\n      title\n      translatedTitle\n      questionFrontendId\n      paidOnly\n      difficulty\n      topicTags {\n        name\n        slug\n        nameTranslated\n      }\n      status\n      isInMyFavorites\n      frequency\n      acRate\n      contestPoint\n    }\n    totalLength\n    finishedLength\n    hasMore\n  }\n}\n    ",
@@ -423,6 +432,37 @@ def get_problems_in_leetcode_cn(args, visable: bool = True):
         )
 
 
+def today(args):
+    match args.source:
+        case 'leetcode':
+            get_daily_problem_details_in_leetcode_cn(args)
+        case None:
+            print(f'Error: no source specified')
+        case _:
+            print(f'Error: unsupported source {args.source} on today command')
+
+
+def get_daily_problem_details_in_leetcode_cn(args):
+    problem = get_daily_problem_in_leetcode_cn(args)
+    problem_id = problem.get('id', None)
+    if problem_id:
+        args.filter = f'id={problem['id']}'
+        get_problems_in_leetcode_cn(args)
+
+def get_daily_problem_in_leetcode_cn(args) -> dict|None:
+    response = requests.get(query_url, json=leetcode_cn_daily_payload, headers=headers)
+    if response.ok and response.content is not None:
+        jc = json.loads(response.content)
+        daily_questions = (
+            jc.get('data', {})
+                .get('calendarTaskSchedule', {})
+                .get('dailyQuestions', [])
+        )
+        if len(daily_questions) > 0:
+            today_problem = daily_questions[0]
+    return today_problem
+
+
 def get_problem_details_in_leetcode_cn(args, slug: str, id: str, name: str, difficulty: str, paid_only: bool, visable: bool = True, print_title: bool = True) -> str:
     if slug is None:
         print("error: cannot locate to problem")
@@ -585,6 +625,8 @@ def main():
         args.func = get
     if args.fetch is not None:
         args.func = fetch
+    if args.today:
+        args.func = today
     
     args.func(args)
 
