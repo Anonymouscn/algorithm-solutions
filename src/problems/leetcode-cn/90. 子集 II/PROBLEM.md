@@ -1,0 +1,31 @@
+# 90. 子集 II
+
+<p style="color: #ffb800; display: inline-flex; item-align: center; justify-content: center; padding: 2px 10px; border: 2px solid #666; border-radius: 20px">中等</p>
+
+给你一个整数数组 `nums` ，其中可能包含重复元素，请你返回该数组所有可能的 **子集（幂集）**。
+
+解集 **不能** 包含重复的子集。返回的解集中，子集可以按 **任意顺序** 排列。
+
+> **子集**: 从数组中选择一些元素（可能为空）。
+
+
+**示例 1：**
+
+> **输入：** nums = [1,2,2] \
+> **输出：** [[],[1],[1,2],[1,2,2],[2],[2,2]]
+
+
+**示例 2：**
+
+> **输入：** nums = [0] \
+> **输出：** [[],[0]]
+
+
+**提示：**
+
+ * `1 <= nums.length <= 10`
+ * `-10 <= nums[i] <= 10`
+
+
+## 参考引用
+[题目链接 - LeetCode(CN) - 90. 子集 II](https://leetcode.cn/problems/subsets-ii)
