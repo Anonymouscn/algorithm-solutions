@@ -40,7 +40,8 @@ func solution(args ...any) any {
 ## 算法题集
 * [题目链接 - LeetCode(CN) - 39. 组合总和](https://leetcode.cn/problems/combination-sum)
 * [题目链接 - LeetCode(CN) - 77. 组合](https://leetcode.cn/problems/combinations)
+* [题目链接 - LeetCode(CN) - 90. 子集 II](https://leetcode.cn/problems/subsets-ii)
 * [题目链接 - LeetCode(CN) - 93. 复原 IP 地址](https://leetcode.cn/problems/restore-ip-addresses)
 
 ## 更新信息
-`2026.01.20`, `anonymous`
+`2026.01.22`, `anonymous`
