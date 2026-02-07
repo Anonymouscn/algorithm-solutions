@@ -59,7 +59,6 @@
     * 时间序列的移动平均、移动方差（工程常见）
 
 ## 算法题集
-* [题目链接 - LeetCode(CN) - 3634. 使数组平衡的最少移除数目](https://leetcode.cn/problems/minimum-removals-to-balance-array)
 
 ## 更新信息
 `2026.02.07`, `anonymous`
